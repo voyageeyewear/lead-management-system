@@ -1,12 +1,12 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/index.ts", "use": "@vercel/node" },
+    { "src": "api/index.js", "use": "@vercel/node" },
     { "src": "api/cron/automation.ts", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/api/cron/automation", "dest": "/api/cron/automation.ts" },
-    { "src": "/api/(.*)", "dest": "/api/index.ts" }
+    { "src": "/api/(.*)", "dest": "/api/index.js" }
   ],
   "crons": [
     { "path": "/api/cron/automation", "schedule": "0 9 * * *" }
