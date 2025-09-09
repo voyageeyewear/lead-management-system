@@ -5,8 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "vercel dev",
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "build": "echo 'No build needed for serverless functions'",
+    "start": "echo 'Serverless functions - no start needed'",
     "migrate": "ts-node src/scripts/migrate.ts",
     "seed": "ts-node src/scripts/seed.ts"
   },
