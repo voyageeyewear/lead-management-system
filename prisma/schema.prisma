@@ -1,0 +1,208 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("SALES_REP")
+  avatar    String?
+  phone     String?
+  department String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assignedLeads Lead[]     @relation("AssignedTo")
+  createdLeads  Lead[]     @relation("CreatedBy")
+  opportunities Opportunity[]
+  assignedActivities Activity[] @relation("AssignedTo")
+  createdActivities  Activity[] @relation("CreatedBy")
+  notes         Note[]
+  assignedConversations Conversation[] @relation("ConversationAssignedTo")
+  sentMessages  Message[]
+
+  @@map("users")
+}
+
+model Lead {
+  id          String     @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  company     String?
+  jobTitle    String?
+  source      String     @default("WEBSITE")
+  status      String     @default("NEW")
+  score       Int        @default(0)
+  value       Float?
+  description String?
+  tags        String?    // JSON array of tags
+  
+  // Assignment
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User    @relation("CreatedBy", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastContactedAt DateTime?
+  
+  // Relations
+  opportunities Opportunity[]
+  activities    Activity[]
+  notes         Note[]
+  conversations Conversation[]
+
+  @@map("leads")
+}
+
+model Opportunity {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  value       Float
+  probability Int               @default(0) // 0-100
+  stage       String            @default("QUALIFICATION")
+  status      String            @default("OPEN")
+  closeDate   DateTime?
+  
+  // Relations
+  leadId      String
+  lead        Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedToId String
+  assignedTo   User   @relation(fields: [assignedToId], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  activities Activity[]
+  notes      Note[]
+
+  @@map("opportunities")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        String
+  title       String
+  description String?
+  status      String       @default("PENDING")
+  priority    String       @default("MEDIUM")
+  dueDate     DateTime?
+  completedAt DateTime?
+  
+  // Relations
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  assignedToId  String
+  assignedTo    User         @relation("AssignedTo", fields: [assignedToId], references: [id])
+  createdById   String
+  createdBy     User         @relation("CreatedBy", fields: [createdById], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("activities")
+}
+
+model Note {
+  id      String @id @default(cuid())
+  content String
+  
+  // Relations
+  leadId        String?
+  lead          Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User         @relation(fields: [authorId], references: [id])
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notes")
+}
+
+model Conversation {
+  id          String @id @default(cuid())
+  
+  // Relations
+  leadId      String
+  lead        Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  assignedToId String?
+  assignedTo  User?  @relation("ConversationAssignedTo", fields: [assignedToId], references: [id])
+  
+  // Conversation metadata
+  lastMessageAt DateTime?
+  lastMessage   String?
+  unreadCount   Int      @default(0)
+  isActive      Boolean  @default(true)
+  
+  // Messages in this conversation
+  messages    Message[]
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("conversations")
+}
+
+model Message {
+  id            String @id @default(cuid())
+  
+  // Message content
+  content       String
+  messageType   String @default("text") // text, template, image, document, etc.
+  direction     String // inbound, outbound
+  
+  // WhatsApp specific
+  whatsappMessageId String?
+  templateName      String?
+  deliveryStatus    String? // sent, delivered, read, failed
+  
+  // Relations
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?        @relation(fields: [senderId], references: [id])
+  
+  // Timestamps
+  sentAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("messages")
+}
+
+// Note: SQLite doesn't support enums, so we use strings with validation in the application layer
+// Valid values for reference:
+// UserRole: ADMIN, SALES_MANAGER, SALES_REP, MARKETING
+// LeadSource: WEBSITE, EMAIL, PHONE, REFERRAL, SOCIAL_MEDIA, ADVERTISEMENT, EVENT, COLD_CALL, CSV_IMPORT, OTHER
+// LeadStatus: NEW, CONTACTED, QUALIFIED, PROPOSAL, NEGOTIATION, CLOSED_WON, CLOSED_LOST, UNQUALIFIED
+// OpportunityStage: QUALIFICATION, NEEDS_ANALYSIS, PROPOSAL, NEGOTIATION, CLOSED_WON, CLOSED_LOST
+// OpportunityStatus: OPEN, WON, LOST
+// ActivityType: CALL, EMAIL, MEETING, TASK, NOTE, FOLLOW_UP
+// ActivityStatus: PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+// Priority: LOW, MEDIUM, HIGH, URGENT
